@@ -2,17 +2,19 @@ import classNames from 'classnames'
 import { FC } from 'react'
 import ChatGPTLogoImg from 'src/assets/chatbot.png'
 import { formatDate } from 'src/shared/utils'
-import { Conversation } from 'src/types/conversation'
+import { _ConversationWithLatestMessage } from 'src/types/conversation'
 import ItemWrapper from './ItemWrapper'
 
 interface Props {
   active: boolean
-  conversation: Conversation
+  conversation: _ConversationWithLatestMessage
   onClick: () => void
 }
 
 const ConversationItem: FC<Props> = ({ active, conversation, onClick }) => {
-  const { isSameDay, display } = formatDate(conversation.updated_at)
+  const { isSameDay, display } = formatDate(
+    conversation.latestMessage?.createdAt || conversation.updatedAt
+  )
 
   return (
     <ItemWrapper onClick={onClick} active={active}>
@@ -36,17 +38,16 @@ const ConversationItem: FC<Props> = ({ active, conversation, onClick }) => {
               { 'w-44': isSameDay }
             )}
           >
-            {conversation.summary || conversation.conversation_id}
+            {conversation.summary || conversation.conversationId}
           </span>
           <span className="text-xs font-semibold text-black text-opacity-30 dark:text-dark-text-sub">
             {display}
           </span>
         </p>
 
-        {conversation.messages.length > 0 && (
+        {conversation.latestMessage && (
           <p className="mt-2 w-48 truncate text-xs font-semibold text-black text-opacity-40 dark:text-dark-text-sub">
-            {conversation.messages[conversation.messages.length - 1].answer ||
-              conversation.messages[conversation.messages.length - 1].question}
+            {conversation.latestMessage.content}
           </p>
         )}
       </div>

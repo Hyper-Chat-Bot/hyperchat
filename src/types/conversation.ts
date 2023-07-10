@@ -3,6 +3,7 @@ import { AudioTranslationConfiguration } from '../configurations/audioTranslatio
 import { ChatConfiguration } from '../configurations/chat'
 import { ImageGenerationConfiguration } from '../configurations/imageGeneration'
 import { TextCompletionConfiguration } from '../configurations/textCompletion'
+import { Products } from './global'
 
 export interface Message {
   message_id: string
@@ -29,3 +30,43 @@ export interface Conversation {
 }
 
 export type EmptyMessageParams = Pick<Message, 'question' | 'file_name'>
+
+export interface _Conversation {
+  conversationId: string
+  summary: string
+  avatar: string
+  product: Products
+  createdAt: number
+  updatedAt: number
+  configuration:
+    | ChatConfiguration
+    | ImageGenerationConfiguration
+    | AudioTranscriptionConfiguration
+    | AudioTranslationConfiguration
+    | TextCompletionConfiguration
+}
+
+export interface _Message {
+  messageId: string
+  conversationId: string
+  role: Role
+  content: string
+  fileName?: string
+  createdAt: number
+}
+
+export interface _ConversationWithLatestMessage extends _Conversation {
+  latestMessage: _Message | null
+}
+
+export interface HashFile {
+  file: File
+  hashName: string
+  src?: string
+}
+
+export enum Role {
+  System = 'system',
+  User = 'user',
+  Assistant = 'assistant'
+}

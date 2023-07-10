@@ -3,38 +3,33 @@ import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Formik, useFormikContext } from 'formik'
 import { FC, useEffect } from 'react'
-import { useRecoilState, useRecoilValue } from 'recoil'
+import { useParams } from 'react-router-dom'
+import { useRecoilState } from 'recoil'
 import { models, responseFormats } from 'src/configurations/audioTranscription'
 import { AudioTranslationConfiguration } from 'src/configurations/audioTranslation'
-import { useDB } from 'src/hooks'
-import { currConversationState } from 'src/stores/conversation'
-import {
-  configurationDrawerVisibleState,
-  currProductState
-} from 'src/stores/global'
+import { db } from 'src/db'
+import { configurationDrawerVisibleState } from 'src/stores/global'
 import Divider from '../Divider'
 import InputSlider from '../InputSlider'
 
 const Configuration: FC = () => {
+  const { conversationId } = useParams()
   const [visible, setVisible] = useRecoilState(configurationDrawerVisibleState)
-  const currProduct = useRecoilValue(currProductState)
-  const [currConversation, setCurrConversation] = useRecoilState(
-    currConversationState
-  )
-  const { updateOneById } = useDB(currProduct)
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
 
   const updateConfiguration = async (values: AudioTranslationConfiguration) => {
     if (!currConversation) {
       return
     }
 
-    await updateOneById(currConversation.conversation_id, {
+    await db.conversations.update(currConversation.conversationId, {
       configuration: values
     })
-
-    setCurrConversation({ ...currConversation, configuration: values })
   }
 
   const AutoSubmitToken = () => {

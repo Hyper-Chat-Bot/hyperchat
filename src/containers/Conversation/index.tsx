@@ -1,30 +1,33 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { FC, useEffect } from 'react'
-import { useRecoilValue, useSetRecoilState } from 'recoil'
+import { useNavigate, useParams } from 'react-router-dom'
 import ChatBox from 'src/components/ChatBox'
 import ConversationList from 'src/components/ConversationList'
 import Divider from 'src/components/Divider'
 import Loading from 'src/components/Loading'
-import { configurations } from 'src/configurations'
 import { useDB } from 'src/hooks'
-import { currConversationState } from 'src/stores/conversation'
-import { currProductState } from 'src/stores/global'
-import { Conversation as IConversation } from 'src/types/conversation'
+import { EMPTY_CONVERSATION_ID } from 'src/shared/constants'
+import { Products } from 'src/types/global'
 
 const Conversation: FC = () => {
-  const currProduct = useRecoilValue(currProductState)
-  const { getCurrConversations } = useDB(currProduct)
-  const conversations = useLiveQuery<IConversation[]>(getCurrConversations, [
-    currProduct
-  ])
-  const setCurrConversation = useSetRecoilState(currConversationState)
-  const Configuration = configurations[currProduct].component()
+  const { product } = useParams()
+  const navigate = useNavigate()
+  const { getConversationsWithLatestMessage } = useDB('')
+  const conversations = useLiveQuery(getConversationsWithLatestMessage, [])
+  // const Configuration = configurations[product as Products].component()
 
   useEffect(() => {
-    if (conversations && currProduct) {
-      setCurrConversation(conversations[0])
+    if (conversations) {
+      navigate(
+        `/p/${Products.ChatCompletion}/c/${
+          conversations[0]?.conversationId || EMPTY_CONVERSATION_ID
+        }`,
+        {
+          replace: true
+        }
+      )
     }
-  }, [conversations, currProduct])
+  }, [conversations])
 
   if (!conversations) return <Loading />
 
@@ -33,7 +36,7 @@ const Conversation: FC = () => {
       <ConversationList conversations={conversations} />
       <Divider direction="vertical" />
       <ChatBox />
-      <Configuration />
+      {/* <Configuration /> */}
     </>
   )
 }

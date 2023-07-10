@@ -2,21 +2,26 @@ import { MicrophoneIcon } from '@heroicons/react/24/solid'
 import Input from '@mui/material/Input'
 import Tooltip from '@mui/material/Tooltip'
 import classNames from 'classnames'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { ChangeEvent, FC, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
+import { db } from 'src/db'
 import { useAppData, useRequest } from 'src/hooks'
 import { isAudioProduct } from 'src/shared/utils'
-import { currConversationState, loadingState } from 'src/stores/conversation'
-import { currProductState } from 'src/stores/global'
-import { HashFile } from 'src/types/global'
+import { loadingState } from 'src/stores/global'
+import { HashFile } from 'src/types/conversation'
+import { Products } from 'src/types/global'
 import Divider from '../Divider'
 import { SolidSendIcon } from '../Icons'
 
 const InputBox: FC = () => {
+  const { product, conversationId } = useParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const currConversation = useRecoilValue(currConversationState)
-  const currProduct = useRecoilValue(currProductState)
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
   const loading = useRecoilValue(loadingState)
   const { saveFileToAppDataDir } = useAppData()
   const [prompt, setPrompt] = useState('')
@@ -47,7 +52,7 @@ const InputBox: FC = () => {
 
   // Prompt is optional in audio products.
   const validate = () => {
-    if (isAudioProduct(currProduct)) {
+    if (isAudioProduct(product)) {
       return Boolean(hashFile)
     } else {
       return prompt.trim().length !== 0
@@ -58,7 +63,8 @@ const InputBox: FC = () => {
     if (loading) return
     if (!validate()) return
 
-    requests[currProduct]()
+    // FIXME: How to declare this via type guard?
+    requests[product as Products]()
     resetInput()
   }
 
@@ -105,7 +111,7 @@ const InputBox: FC = () => {
         />
 
         <section className="absolute bottom-3.5 right-4 z-10 flex gap-3">
-          {isAudioProduct(currProduct) && (
+          {isAudioProduct(product) && (
             <>
               <label
                 htmlFor="$$video-input"

@@ -1,24 +1,29 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { CreateCompletionResponse } from 'openai'
+import { useParams } from 'react-router-dom'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { TextCompletionConfiguration } from 'src/configurations/textCompletion'
+import { db } from 'src/db'
 import { useCompany, useMessages } from 'src/hooks'
 import { showErrorToast } from 'src/shared/utils'
-import { currConversationState, loadingState } from 'src/stores/conversation'
+import { loadingState } from 'src/stores/global'
 import { settingsState } from 'src/stores/settings'
+import { Role } from 'src/types/conversation'
+import { LoadingType } from 'src/types/global'
 
 const useTextCompletion = (prompt: string) => {
-  const currConversation = useRecoilValue(currConversationState)
+  const { conversationId } = useParams()
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
   const setLoading = useSetRecoilState(loadingState)
   const settings = useRecoilValue(settingsState)
   const company = useCompany()
-  const {
-    pushEmptyMessage,
-    saveMessageToDbAndUpdateConversationState,
-    rollBackEmptyMessage
-  } = useMessages()
+  const { addMessage } = useMessages()
 
   const createTextCompletion = async () => {
     if (!settings || !currConversation) return
+    await addMessage(prompt, Role.User)
 
     const {
       model,
@@ -32,11 +37,7 @@ const useTextCompletion = (prompt: string) => {
     } = currConversation.configuration as TextCompletionConfiguration
 
     try {
-      setLoading(true)
-
-      const emptyMessage = pushEmptyMessage({
-        question: prompt
-      })
+      setLoading(LoadingType.FetchAssistantContent)
 
       const response = await company.text_completion({
         model,
@@ -56,15 +57,14 @@ const useTextCompletion = (prompt: string) => {
         ? post_response_text.content
         : ''
 
-      saveMessageToDbAndUpdateConversationState(
-        emptyMessage,
-        preResponseText + (completion.choices[0].text || '') + postResponseText
+      await addMessage(
+        preResponseText + (completion.choices[0].text || '') + postResponseText,
+        Role.Assistant
       )
     } catch (error) {
       showErrorToast(error)
-      rollBackEmptyMessage()
     } finally {
-      setLoading(false)
+      setLoading(LoadingType.NoLoading)
     }
   }
 

@@ -3,12 +3,10 @@ import { Cog6ToothIcon as Cog6ToothIconSolid } from '@heroicons/react/24/solid'
 import Tooltip from '@mui/material/Tooltip'
 import { capitalCase } from 'change-case'
 import { FC, MouseEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { useRecoilState } from 'recoil'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import LogoImg from 'src/assets/chatbot.png'
 import { AzureLogoIcon, OpenAILogoIcon } from 'src/components/Icons'
 import { useSettings } from 'src/hooks'
-import { currProductState } from 'src/stores/global'
 import { Companies, Products } from 'src/types/global'
 import Avatar from '../Avatar'
 import Divider from '../Divider'
@@ -24,13 +22,13 @@ const companyLogo = {
 }
 
 const Sidebar: FC = () => {
+  const { product } = useParams()
+  const navigate = useNavigate()
   const location = useLocation()
   const { settings } = useSettings()
-  const [currProduct, setCurrProduct] = useRecoilState(currProductState)
 
-  const onProductChange = async (e: MouseEvent, product: Products) => {
-    window.localStorage.setItem('currProductState', product)
-    setCurrProduct(product)
+  const onProductChange = async (_: MouseEvent, product: Products) => {
+    navigate(`/p/:${product}/c/no`)
   }
 
   if (!settings) return null
@@ -58,8 +56,7 @@ const Sidebar: FC = () => {
                         className="mb-6 block cursor-pointer"
                         onClick={(e) => onProductChange(e, item.product)}
                       >
-                        {currProduct === item.product &&
-                        location.pathname === '/'
+                        {product === item.product && location.pathname === '/'
                           ? item.active
                           : item.inactive}
                       </Link>

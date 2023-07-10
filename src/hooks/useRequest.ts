@@ -4,7 +4,8 @@ import {
   useImageGeneration,
   useTextCompletion
 } from 'src/hooks'
-import { HashFile, Products } from 'src/types/global'
+import { HashFile } from 'src/types/conversation'
+import { Products } from 'src/types/global'
 
 const useRequest = (prompt: string, hashFile: HashFile) => {
   const { createChatCompletion } = useChatCompletion(prompt)

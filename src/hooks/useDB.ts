@@ -33,11 +33,48 @@ const useDB = (tableName: string) => {
     } catch {}
   }
 
-  const getCurrConversations = () =>
-    db.table(tableName).orderBy('updated_at').reverse().toArray()
+  const getConversationsWithLatestMessage = async () => {
+    const conversations = await db.conversations.toArray()
+
+    const latestMessages = await Promise.all(
+      conversations.map(async (conversation) => {
+        const messages = await db.messages
+          .where('conversationId')
+          .equals(conversation.conversationId)
+          .reverse() // Reverse the order to get the latest message first.
+          .limit(1) // Limit the result to the latest message only
+          .toArray()
+
+        if (messages.length > 0) {
+          return messages[0]
+        }
+        return null
+      })
+    )
+
+    const conversationsWithLatestMessage = conversations.map(
+      (conversation, index) => {
+        const latestMessage = latestMessages[index]
+
+        return {
+          ...conversation,
+          latestMessage
+        }
+      }
+    )
+
+    // Sort conversations based on the timestamp of the latest message or conversation creation time
+    conversationsWithLatestMessage.sort((a, b) => {
+      const aTime = a.latestMessage ? a.latestMessage.createdAt : a.updatedAt
+      const bTime = b.latestMessage ? b.latestMessage.createdAt : b.updatedAt
+      return bTime - aTime
+    })
+
+    return conversationsWithLatestMessage
+  }
 
   return {
-    getCurrConversations,
+    getConversationsWithLatestMessage,
     deleteOneById,
     toArray,
     updateOneById,

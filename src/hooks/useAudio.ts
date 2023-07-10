@@ -1,36 +1,35 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useParams } from 'react-router-dom'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { AudioTranscriptionConfiguration } from 'src/configurations/audioTranscription'
 import { AudioTranslationConfiguration } from 'src/configurations/audioTranslation'
+import { db } from 'src/db'
 import { useMessages, useOpenAI } from 'src/hooks'
 import { showErrorToast } from 'src/shared/utils'
-import { currConversationState, loadingState } from 'src/stores/conversation'
+import { loadingState } from 'src/stores/global'
 import { settingsState } from 'src/stores/settings'
-import { HashFile } from 'src/types/global'
+import { HashFile, Role } from 'src/types/conversation'
+import { LoadingType } from 'src/types/global'
 
 const useAudio = (prompt: string, hashFile: HashFile | null) => {
-  const currConversation = useRecoilValue(currConversationState)
+  const { conversationId } = useParams()
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
   const settings = useRecoilValue(settingsState)
   const setLoading = useSetRecoilState(loadingState)
   const openai = useOpenAI()
-  const {
-    pushEmptyMessage,
-    saveMessageToDbAndUpdateConversationState,
-    rollBackEmptyMessage
-  } = useMessages()
+  const { addMessage } = useMessages()
 
   const createTranscription = async () => {
     if (!hashFile || !settings || !currConversation) return
+    await addMessage(prompt, Role.User)
 
     const { model, temperature, language, response_format } =
       currConversation.configuration as AudioTranscriptionConfiguration
 
     try {
-      setLoading(true)
-
-      const emptyMessage = pushEmptyMessage({
-        question: prompt,
-        file_name: hashFile.hashName
-      })
+      setLoading(LoadingType.FetchUserContent)
 
       const transcription = await openai.createTranscription(
         hashFile.file,
@@ -40,20 +39,16 @@ const useAudio = (prompt: string, hashFile: HashFile | null) => {
         temperature,
         language === '' ? undefined : language
       )
-
-      console.log(transcription)
-
-      saveMessageToDbAndUpdateConversationState(
-        emptyMessage,
+      await addMessage(
         // If `response_format` is `json` or `verbose_json`, the result is `transcription.data.text`.
         // If `response_format` is `text`, `vtt` `or `srt`, the result is `transcription.data`.
-        transcription.data.text || (transcription.data as unknown as string)
+        transcription.data.text || (transcription.data as unknown as string),
+        Role.Assistant
       )
     } catch (error) {
       showErrorToast(error)
-      rollBackEmptyMessage()
     } finally {
-      setLoading(false)
+      setLoading(LoadingType.NoLoading)
     }
   }
 
@@ -64,12 +59,7 @@ const useAudio = (prompt: string, hashFile: HashFile | null) => {
       currConversation.configuration as AudioTranslationConfiguration
 
     try {
-      setLoading(true)
-
-      const emptyMessage = pushEmptyMessage({
-        question: prompt,
-        file_name: hashFile.hashName
-      })
+      setLoading(LoadingType.FetchAssistantContent)
 
       const translation = await openai.createTranslation(
         hashFile.file,
@@ -78,18 +68,16 @@ const useAudio = (prompt: string, hashFile: HashFile | null) => {
         response_format,
         temperature
       )
-
-      saveMessageToDbAndUpdateConversationState(
-        emptyMessage,
-        // If `response_format` is `json` or `verbose_json`, the result is `translation.data.text`.
-        // If `response_format` is `text`, `vtt` `or `srt`, the result is `translation.data`.
-        translation.data.text || (translation.data as unknown as string)
+      await addMessage(
+        // If `response_format` is `json` or `verbose_json`, the result is `transcription.data.text`.
+        // If `response_format` is `text`, `vtt` `or `srt`, the result is `transcription.data`.
+        translation.data.text || (translation.data as unknown as string),
+        Role.Assistant
       )
     } catch (error) {
       showErrorToast(error)
-      rollBackEmptyMessage()
     } finally {
-      setLoading(false)
+      setLoading(LoadingType.NoLoading)
     }
   }
 

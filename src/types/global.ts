@@ -1,3 +1,5 @@
+import { Role } from './conversation'
+
 export type Dict = { [index: string]: string }
 
 export interface SvgIconProps {
@@ -26,12 +28,6 @@ export interface AlertError {
   message: string
 }
 
-export interface HashFile {
-  file: File
-  hashName: string
-  src?: string
-}
-
 export interface EmojiPickerProps {
   emoticons: string[]
   id: string
@@ -46,4 +42,10 @@ export enum ThemeMode {
   light = 'light',
   system = 'system',
   dark = 'dark'
+}
+
+export enum LoadingType {
+  NoLoading,
+  FetchUserContent = Role.User,
+  FetchAssistantContent = Role.Assistant
 }

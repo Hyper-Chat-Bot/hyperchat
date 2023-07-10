@@ -1,38 +1,33 @@
 import Drawer from '@mui/material/Drawer'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Formik, useFormikContext } from 'formik'
 import { FC, ReactElement, cloneElement, useEffect } from 'react'
-import { useRecoilState, useRecoilValue } from 'recoil'
+import { useParams } from 'react-router-dom'
+import { useRecoilState } from 'recoil'
 import Divider from 'src/components/Divider'
 import { ChatConfiguration } from 'src/configurations/chat'
-import { useDB } from 'src/hooks'
-import { currConversationState } from 'src/stores/conversation'
-import {
-  configurationDrawerVisibleState,
-  currProductState
-} from 'src/stores/global'
+import { db } from 'src/db'
+import { configurationDrawerVisibleState } from 'src/stores/global'
 
 interface Props {
   children: ReactElement
 }
 
 const ConfigurationWrapper: FC<Props> = ({ children }) => {
+  const { conversationId } = useParams()
   const [visible, setVisible] = useRecoilState(configurationDrawerVisibleState)
-  const currProduct = useRecoilValue(currProductState)
-  const [currConversation, setCurrConversation] = useRecoilState(
-    currConversationState
-  )
-  const { updateOneById } = useDB(currProduct)
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
 
   const updateConfiguration = async (values: ChatConfiguration) => {
     if (!currConversation) {
       return
     }
 
-    await updateOneById(currConversation.conversation_id, {
+    await db.conversations.update(currConversation.conversationId, {
       configuration: values
     })
-
-    setCurrConversation({ ...currConversation, configuration: values })
   }
 
   const AutoSubmitToken = () => {

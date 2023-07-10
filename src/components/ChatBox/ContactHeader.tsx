@@ -6,30 +6,28 @@ import {
 } from '@heroicons/react/24/solid'
 import Input from '@mui/material/Input'
 import classNames from 'classnames'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { FC, KeyboardEvent, useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import ChatGPTLogoImg from 'src/assets/chatbot.png'
-import { useDB } from 'src/hooks'
+import { db } from 'src/db'
 import { EMPTY_CHAT_HINT } from 'src/shared/constants'
 import {
   avatarPickerVisibleState,
-  currConversationState,
   summaryInputVisibleState
 } from 'src/stores/conversation'
-import {
-  configurationDrawerVisibleState,
-  currProductState,
-  onlineState
-} from 'src/stores/global'
+import { configurationDrawerVisibleState, onlineState } from 'src/stores/global'
 import { EmojiPickerProps } from 'src/types/global'
 import Avatar from '../Avatar'
 import EmojiPicker from '../EmojiPicker'
 
 const ContactHeader: FC = () => {
-  const [currConversation, setCurrConversation] = useRecoilState(
-    currConversationState
+  const { conversationId } = useParams()
+  const currConversation = useLiveQuery(
+    () => db.conversations.where({ conversationId }).first(),
+    [conversationId]
   )
-  const currProduct = useRecoilValue(currProductState)
   const [summaryInputVisible, setSummaryInputVisible] = useRecoilState(
     summaryInputVisibleState
   )
@@ -43,11 +41,10 @@ const ContactHeader: FC = () => {
   const [summaryValue, setSummaryValue] = useState(
     currConversation?.summary || ''
   )
-  const { updateOneById, deleteOneById } = useDB(currProduct)
 
   const summary =
     currConversation?.summary ||
-    currConversation?.conversation_id ||
+    currConversation?.conversationId ||
     EMPTY_CHAT_HINT
 
   const openSummaryInput = () => {
@@ -57,16 +54,15 @@ const ContactHeader: FC = () => {
 
   const saveSummary = async () => {
     if (summaryValue.trim().length === 0) return
+    if (!conversationId) return
 
-    if (currConversation) {
-      const changes = {
-        summary: summaryValue,
-        updated_at: +new Date()
-      }
-      await updateOneById(currConversation.conversation_id, changes)
-      setCurrConversation({ ...currConversation, ...changes })
-      setSummaryInputVisible(false)
+    const changes = {
+      summary: summaryValue,
+      updatedAt: +new Date()
     }
+
+    await db.conversations.update(conversationId, changes)
+    setSummaryInputVisible(false)
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -76,21 +72,20 @@ const ContactHeader: FC = () => {
   }
 
   const saveAvatar = async (data: EmojiPickerProps) => {
-    if (currConversation) {
-      const changes = {
-        avatar: data.native,
-        updated_at: +new Date()
-      }
-      await updateOneById(currConversation.conversation_id, changes)
-      setCurrConversation({ ...currConversation, ...changes })
-      setAvatarPickerVisible(false)
+    if (!conversationId) return
+
+    const changes = {
+      avatar: data.native,
+      updatedAt: +new Date()
     }
+    await db.conversations.update(conversationId, changes)
+    setAvatarPickerVisible(false)
   }
 
   const deleteCurrConversation = async () => {
-    if (currConversation) {
-      await deleteOneById(currConversation.conversation_id)
-    }
+    if (!conversationId) return
+
+    await db.conversations.delete(conversationId)
   }
 
   useEffect(() => {

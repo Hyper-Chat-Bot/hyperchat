@@ -1,24 +1,40 @@
 import classNames from 'classnames'
-import { FC, Fragment, useEffect, useRef } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { FC, useEffect, useRef } from 'react'
+import { useParams } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
 import ChatGPTLogoImg from 'src/assets/chatbot.png'
 import NoDataIllustration from 'src/assets/illustrations/no-data.svg'
+import { db } from 'src/db'
 import { useSettings } from 'src/hooks'
 import { isAudioProduct } from 'src/shared/utils'
-import { currConversationState, loadingState } from 'src/stores/conversation'
-import { currProductState } from 'src/stores/global'
+import { streamDataState } from 'src/stores/conversation'
+import { loadingState } from 'src/stores/global'
+import { Role } from 'src/types/conversation'
+import { LoadingType } from 'src/types/global'
 import Waveform from '../Waveform'
 import ChatBubble from './ChatBubble'
 import Markdown from './Markdown'
 import MessageSpinner from './MessageSpinner'
 
 const ChatMessages: FC = () => {
+  const { conversationId, product } = useParams()
+  const messages = useLiveQuery(
+    () => db.messages.where({ conversationId }).sortBy('createdAt'),
+    [conversationId]
+  )
   const chatBoxRef = useRef<HTMLDivElement>(null)
   const loading = useRecoilValue(loadingState)
+  const streamData = useRecoilValue(streamDataState)
   const { settings } = useSettings()
-  const currProduct = useRecoilValue(currProductState)
-  const currConversation = useRecoilValue(currConversationState)
-  const hasMessages = currConversation && currConversation.messages.length > 0
+  const hasMessages = messages && messages.length > 0
+
+  const getAvatar = (role: Role) =>
+    role === Role.Assistant
+      ? settings?.assistant_avatar_filename
+        ? settings.assistant_avatar_filename
+        : ChatGPTLogoImg
+      : ''
 
   const scrollToBottom = () => {
     if (!chatBoxRef.current) return
@@ -34,7 +50,7 @@ const ChatMessages: FC = () => {
 
   useEffect(() => {
     scrollToBottom()
-  }, [currConversation])
+  }, [messages])
 
   return (
     <section
@@ -46,35 +62,33 @@ const ChatMessages: FC = () => {
     >
       {hasMessages ? (
         <>
-          {currConversation?.messages.map((message) => (
-            <Fragment key={message.message_id}>
-              <ChatBubble
-                role="user"
-                avatar=""
-                date={message.question_created_at}
-              >
-                {isAudioProduct(currProduct) && message.file_name && (
-                  <Waveform filename={message.file_name} />
-                )}
-                {message.question}
-              </ChatBubble>
-              <ChatBubble
-                role="assistant"
-                avatar={
-                  settings?.assistant_avatar_filename
-                    ? settings.assistant_avatar_filename
-                    : ChatGPTLogoImg
-                }
-                date={message.answer_created_at}
-              >
-                {loading && !message.answer ? (
-                  <MessageSpinner />
-                ) : (
-                  <Markdown raw={message.answer} />
-                )}
-              </ChatBubble>
-            </Fragment>
+          {messages.map((message) => (
+            <ChatBubble
+              key={message.messageId}
+              role={message.role}
+              avatar={getAvatar(message.role)}
+              date={message.createdAt}
+            >
+              {isAudioProduct(product) && message.fileName && (
+                <Waveform filename={message.fileName} />
+              )}
+              {message.role === 'assistant' ? (
+                <Markdown raw={message.content} />
+              ) : (
+                message.content
+              )}
+            </ChatBubble>
           ))}
+
+          {/* {(loading === LoadingType.FetchAssistantContent ||
+            loading === LoadingType.FetchUserContent) && ( */}
+            <ChatBubble
+              role={Role.Assistant}
+              avatar={getAvatar(Role.Assistant)}
+            >
+              {streamData ? <Markdown raw={streamData} /> : <MessageSpinner />}
+            </ChatBubble>
+          {/* )} */}
         </>
       ) : (
         <img

@@ -1,38 +1,38 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { DateTime } from 'luxon'
 import { ImagesResponse } from 'openai'
+import { useParams } from 'react-router-dom'
 import { useRecoilValue, useSetRecoilState } from 'recoil'
 import { ImageGenerationConfiguration } from 'src/configurations/imageGeneration'
+import { db } from 'src/db'
 import { useCompany, useMessages } from 'src/hooks'
 import { showErrorToast } from 'src/shared/utils'
-import { currConversationState, loadingState } from 'src/stores/conversation'
+import { loadingState } from 'src/stores/global'
 import { settingsState } from 'src/stores/settings'
 import { AzureImageGeneration } from 'src/types/azure'
-import { Companies } from 'src/types/global'
+import { Role } from 'src/types/conversation'
+import { Companies, LoadingType } from 'src/types/global'
 import { sleep } from 'yancey-js-util'
 
 const useImageGeneration = (prompt: string) => {
-  const currConversation = useRecoilValue(currConversationState)
+  const { conversationId } = useParams()
+  const currConversation = useLiveQuery(() => {
+    return db.conversations.where({ conversationId }).first()
+  }, [conversationId])
   const setLoading = useSetRecoilState(loadingState)
   const settings = useRecoilValue(settingsState)
   const company = useCompany()
-  const {
-    pushEmptyMessage,
-    saveMessageToDbAndUpdateConversationState,
-    rollBackEmptyMessage
-  } = useMessages()
+  const { addMessage } = useMessages()
 
   const createOpenAIImageGeneration = async () => {
     if (!settings || !currConversation) return
+    await addMessage(prompt, Role.User)
 
     const { n, size, response_format } =
       currConversation.configuration as ImageGenerationConfiguration
 
     try {
-      setLoading(true)
-
-      const emptyMessage = pushEmptyMessage({
-        question: prompt
-      })
+      setLoading(LoadingType.FetchAssistantContent)
 
       const response = await company.image_generation({
         prompt: prompt,
@@ -45,28 +45,23 @@ const useImageGeneration = (prompt: string) => {
       const content = image.data
         .map((val, key) => `![${prompt}-${key}](${val.url})\n`)
         .join('')
-
-      saveMessageToDbAndUpdateConversationState(emptyMessage, content)
+      await addMessage(content, Role.Assistant)
     } catch (error) {
       showErrorToast(error)
-      rollBackEmptyMessage()
     } finally {
-      setLoading(false)
+      setLoading(LoadingType.NoLoading)
     }
   }
 
   const createAzureImageGeneration = async () => {
     if (!settings || !currConversation) return
+    await addMessage(prompt, Role.User)
 
     const { n, size } =
       currConversation.configuration as ImageGenerationConfiguration
 
     try {
-      setLoading(true)
-
-      const emptyMessage = pushEmptyMessage({
-        question: prompt
-      })
+      setLoading(LoadingType.FetchAssistantContent)
 
       const headers = {
         'Content-Type': 'application/json',
@@ -104,13 +99,11 @@ const useImageGeneration = (prompt: string) => {
       ).toLocaleString(
         DateTime.DATETIME_SHORT_WITH_SECONDS
       )}**, please download as soon as possible.)`
-
-      saveMessageToDbAndUpdateConversationState(emptyMessage, content)
+      await addMessage(content, Role.Assistant)
     } catch (error) {
       showErrorToast(error)
-      rollBackEmptyMessage()
     } finally {
-      setLoading(false)
+      setLoading(LoadingType.NoLoading)
     }
   }
 

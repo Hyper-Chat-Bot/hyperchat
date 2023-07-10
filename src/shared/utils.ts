@@ -27,7 +27,7 @@ export const generateHashName = (fileName: string) => {
   return hashName
 }
 
-export const isAudioProduct = (product: Products) =>
+export const isAudioProduct = (product?: string | Products) =>
   product === Products.AudioTranscription ||
   product === Products.AudioTranslation
 
