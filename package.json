@@ -16,7 +16,7 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@heroicons/react": "^2.0.18",
-    "@mui/material": "^5.13.6",
+    "@mui/material": "^5.13.7",
     "@tauri-apps/api": "^1.4.0",
     "axios": "^1.4.0",
     "classnames": "^2.3.2",
